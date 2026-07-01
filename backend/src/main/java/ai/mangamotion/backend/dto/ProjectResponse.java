@@ -15,6 +15,8 @@ public record ProjectResponse(
         Instant createdAt,
         Instant updatedAt,
         String musicUrl,
-        String dominantMood
+        String dominantMood,
+        String exportUrl,
+        String srtUrl
 ) {
 }

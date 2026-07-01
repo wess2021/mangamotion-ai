@@ -30,7 +30,7 @@ public class ProcessingService {
     @Value("${mangamotion.storage-path}")
     private String storagePath;
 
-    // ─── Public entry points ──────────────────────────────────────────────────
+    // ─── Public async entry points ────────────────────────────────────────────
 
     @Async
     public void processChapterAsync(UUID projectId, Path uploadedFile) {
@@ -62,18 +62,26 @@ public class ProcessingService {
         }
     }
 
+    @Async
+    public void generateExportAsync(UUID projectId) {
+        try {
+            runExport(projectId);
+        } catch (Exception ex) {
+            log.error("Export failed for project {}", projectId, ex);
+            fail(projectId, "Export failed: " + ex.getMessage());
+        }
+    }
+
     // ─── Full pipeline ────────────────────────────────────────────────────────
 
     @Transactional
     protected void runPipeline(UUID projectId, Path uploadedFile) {
         Project project = projectService.findProject(projectId);
 
-        // Phase 2 — Extract pages
         projectService.updateProgress(project, ProjectStatus.EXTRACTING_PAGES, "Extracting pages...", 5);
         JsonNode extractResponse = post("/api/extract-pages",
                 new ExtractPagesRequest(projectId.toString(), uploadedFile.toString()));
 
-        // Phase 2 — Detect panels
         projectService.updateProgress(project, ProjectStatus.DETECTING_PANELS, "Detecting panels...", 15);
         JsonNode panelResponse = post("/api/detect-panels",
                 new DetectPanelsRequest(projectId.toString(), extractResponse.path("pages")));
@@ -97,7 +105,6 @@ public class ProcessingService {
         project.getPanels().addAll(panels);
         projectRepository.save(project);
 
-        // Phase 3 — OCR
         projectService.updateProgress(project, ProjectStatus.OCR, "Reading dialogue...", 30);
         JsonNode ocrResponse = post("/api/ocr", new OcrRequest(projectId.toString()));
 
@@ -107,7 +114,6 @@ public class ProcessingService {
                       .append(line.path("text").asText()).append("\n");
         }
 
-        // Phase 3 — Story analysis
         projectService.updateProgress(project, ProjectStatus.STORY_ANALYSIS, "Understanding story...", 40);
         JsonNode storyResponse = post("/api/story/analyze",
                 new StoryAnalysisRequest(projectId.toString(), ocrResponse.path("lines")));
@@ -118,7 +124,6 @@ public class ProcessingService {
             if (!emotion.isBlank()) { dominantMood = emotion; break; }
         }
 
-        // Phase 3 — Prompt generation
         projectService.updateProgress(project, ProjectStatus.PROMPT_GENERATION, "Generating cinematic prompts...", 50);
         JsonNode promptResponse = post("/api/story/prompts", new BulkPromptRequest(projectId.toString()));
 
@@ -127,7 +132,6 @@ public class ProcessingService {
             promptByPanel.put(n.path("panel_id").asText(), n.path("cinematic_prompt").asText());
         }
 
-        // Persist OCR + prompts + mood
         project = projectService.findProject(projectId);
         project.setDominantMood(dominantMood);
         for (Panel p : project.getPanels()) {
@@ -137,12 +141,11 @@ public class ProcessingService {
         }
         projectRepository.save(project);
 
-        // Phase 4 — Video generation
         projectService.updateProgress(project, ProjectStatus.VIDEO_GENERATION, "Animating panels...", 60);
         runVideoGeneration(projectId);
 
-        // Phase 5 — Audio generation
         runAudioPipeline(projectId);
+        runExport(projectId);
     }
 
     // ─── Phase 4 — Video generation ──────────────────────────────────────────
@@ -175,7 +178,7 @@ public class ProcessingService {
 
         Map<String, String> videoByPanel = new HashMap<>();
         for (JsonNode r : bulkResult.path("results")) {
-            String pid  = r.path("panel_id").asText();
+            String pid   = r.path("panel_id").asText();
             String vpath = r.path("video_path").asText();
             if (!vpath.isBlank()) videoByPanel.put(pid, vpath);
         }
@@ -217,7 +220,6 @@ public class ProcessingService {
         String musicPath = audioResult.path("music_path").asText(null);
         Map<String, String> voiceMap = new HashMap<>();
         Map<String, String> sfxMap   = new HashMap<>();
-
         audioResult.path("panel_voices").fields().forEachRemaining(e ->
                 voiceMap.put(e.getKey(), e.getValue().asText()));
         audioResult.path("panel_sfx").fields().forEachRemaining(e ->
@@ -225,19 +227,60 @@ public class ProcessingService {
 
         project = projectService.findProject(projectId);
         if (musicPath != null && !musicPath.isBlank()) project.setMusicPath(musicPath);
-
         for (Panel p : project.getPanels()) {
             String s = stem(p.getImagePath());
             if (voiceMap.containsKey(s)) p.setVoicePath(voiceMap.get(s));
             if (sfxMap.containsKey(s))   p.setSfxPath(sfxMap.get(s));
         }
         projectRepository.save(project);
+        log.info("Audio pipeline complete for project {}: {} voices, {} SFX",
+                projectId, voiceMap.size(), sfxMap.size());
+    }
 
-        long voices = voiceMap.size();
-        long sfx    = sfxMap.size();
-        String msg  = voices + " voices, " + sfx + " SFX, music ready — all done!";
+    // ─── Phase 6 — Export/Merge ───────────────────────────────────────────────
+
+    @Transactional
+    public void runExport(UUID projectId) {
+        Project project = projectService.findProject(projectId);
+        List<Panel> panels = project.getPanels();
+
+        long videoCount = panels.stream().filter(p -> p.getVideoPath() != null).count();
+        if (videoCount == 0) {
+            projectService.updateProgress(project, ProjectStatus.READY, "No animated panels to merge", 100);
+            return;
+        }
+
+        projectService.updateProgress(project, ProjectStatus.MERGING,
+                "Merging " + videoCount + " panels into final MP4...", 95);
+
+        List<Map<String, Object>> panelPayloads = new ArrayList<>();
+        for (Panel p : panels) {
+            if (p.getVideoPath() == null) continue;
+            Map<String, Object> entry = new HashMap<>();
+            entry.put("panel_id",   stem(p.getImagePath()));
+            entry.put("video_path", p.getVideoPath());
+            entry.put("ocr_text",   p.getOcrText() != null ? p.getOcrText() : "");
+            if (p.getVoicePath() != null) entry.put("voice_path", p.getVoicePath());
+            panelPayloads.add(entry);
+        }
+
+        JsonNode exportResult = post("/api/export/merge", new ExportRequest(
+                projectId.toString(),
+                panelPayloads,
+                project.getMusicPath()
+        ));
+
+        project = projectService.findProject(projectId);
+        String videoPath = exportResult.path("video_path").asText(null);
+        String srtPath   = exportResult.path("srt_path").asText(null);
+        if (videoPath != null && !videoPath.isBlank()) project.setExportPath(videoPath);
+        if (srtPath   != null && !srtPath.isBlank())   project.setSrtPath(srtPath);
+
+        double dur = exportResult.path("duration_seconds").asDouble();
+        int    cnt = exportResult.path("panel_count").asInt();
+        String msg = "Export ready — " + cnt + " panels, " + String.format("%.1f", dur) + "s MP4";
         projectService.updateProgress(project, ProjectStatus.READY, msg, 100);
-        log.info("Audio pipeline complete for project {}: {}", projectId, msg);
+        log.info("Export complete for project {}: {}", projectId, msg);
     }
 
     // ─── Helpers ──────────────────────────────────────────────────────────────
@@ -248,10 +291,10 @@ public class ProcessingService {
 
     private void fail(UUID projectId, String msg) {
         try {
-            Project project = projectService.findProject(projectId);
-            project.setStatus(ProjectStatus.FAILED);
-            project.setProgressMessage(msg);
-            projectRepository.save(project);
+            Project p = projectService.findProject(projectId);
+            p.setStatus(ProjectStatus.FAILED);
+            p.setProgressMessage(msg);
+            projectRepository.save(p);
         } catch (Exception ignored) {}
     }
 
@@ -272,4 +315,8 @@ public class ProcessingService {
             List<Map<String, Object>> panels,
             String dominant_mood,
             double total_duration) {}
+    private record ExportRequest(
+            String project_id,
+            List<Map<String, Object>> panels,
+            String music_path) {}
 }

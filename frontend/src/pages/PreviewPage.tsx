@@ -20,11 +20,13 @@ import SkipPreviousIcon from '@mui/icons-material/SkipPrevious'
 import MovieIcon from '@mui/icons-material/Movie'
 import MicIcon from '@mui/icons-material/Mic'
 import MusicNoteIcon from '@mui/icons-material/MusicNote'
-import { useParams } from 'react-router-dom'
+import SubtitlesIcon from '@mui/icons-material/Subtitles'
+import { useNavigate, useParams } from 'react-router-dom'
 import { getPanels, getProject, type Panel, type Project } from '../api/client'
 
 export default function PreviewPage() {
   const { projectId } = useParams()
+  const navigate = useNavigate()
   const [project, setProject] = useState<Project | null>(null)
   const [panels, setPanels] = useState<Panel[]>([])
   const [error, setError] = useState<string | null>(null)
@@ -39,14 +41,13 @@ export default function PreviewPage() {
     Promise.all([getProject(projectId), getPanels(projectId)])
       .then(([proj, pnls]) => {
         setProject(proj)
-        const videoPanels = pnls.filter((p) => p.videoUrl)
+        const videoPanels = pnls.filter((p) => p.videoUrl).sort((a, b) => a.sortOrder - b.sortOrder)
         setPanels(videoPanels)
       })
       .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load preview'))
   }, [projectId])
 
-  const videoPanels = panels.filter((p) => p.videoUrl)
-  const current = videoPanels[currentIndex]
+  const current = panels[currentIndex]
 
   useEffect(() => {
     if (videoRef.current && current?.videoUrl) {
@@ -54,7 +55,6 @@ export default function PreviewPage() {
       videoRef.current.load()
       if (isPlaying) videoRef.current.play().catch(() => {})
     }
-    // Auto-play voice for this panel
     if (voiceRef.current) {
       if (current?.voiceUrl) {
         voiceRef.current.src = current.voiceUrl
@@ -67,11 +67,11 @@ export default function PreviewPage() {
   }, [currentIndex, current?.videoUrl, current?.voiceUrl])
 
   function handleVideoEnded() {
-    if (currentIndex < videoPanels.length - 1) {
+    if (currentIndex < panels.length - 1) {
       setCurrentIndex((i) => i + 1)
     } else {
       setIsPlaying(false)
-      if (musicRef.current) musicRef.current.pause()
+      musicRef.current?.pause()
     }
   }
 
@@ -90,7 +90,7 @@ export default function PreviewPage() {
   }
 
   function goTo(index: number) {
-    setCurrentIndex(Math.max(0, Math.min(index, videoPanels.length - 1)))
+    setCurrentIndex(Math.max(0, Math.min(index, panels.length - 1)))
   }
 
   if (!projectId) return <Alert severity="error">Missing project ID</Alert>
@@ -103,34 +103,45 @@ export default function PreviewPage() {
             Video preview
           </Typography>
           <Typography color="text.secondary">
-            Watch your animated panels in sequence. Voice and music play automatically.
+            Watch animated panels in sequence. Voice and music play automatically.
           </Typography>
         </Box>
         <Stack direction="row" spacing={1} alignItems="flex-start" flexWrap="wrap">
-          <Chip
-            icon={<MovieIcon />}
-            label={`${videoPanels.length} animated`}
-            color={videoPanels.length > 0 ? 'success' : 'default'}
-          />
+          <Chip icon={<MovieIcon />} label={`${panels.length} animated`}
+                color={panels.length > 0 ? 'success' : 'default'} />
           {project?.musicUrl && (
-            <Chip
-              icon={<MusicNoteIcon />}
-              label={project.dominantMood ?? 'music'}
-              color="primary"
-            />
+            <Chip icon={<MusicNoteIcon />} label={project.dominantMood ?? 'music'} color="primary" />
           )}
         </Stack>
       </Stack>
 
       {error && <Alert severity="error">{error}</Alert>}
 
-      {/* Hidden audio elements */}
+      {/* Hidden audio for sync */}
       <Box component="audio" ref={voiceRef} sx={{ display: 'none' }} />
       {project?.musicUrl && (
         <Box component="audio" ref={musicRef} src={project.musicUrl} loop sx={{ display: 'none' }} />
       )}
 
-      {videoPanels.length === 0 ? (
+      {/* Export ready banner */}
+      {project?.exportUrl && (
+        <Alert severity="success" icon={<DownloadIcon />}>
+          <Stack direction="row" spacing={2} alignItems="center" flexWrap="wrap">
+            <span>Final MP4 export is ready!</span>
+            <Button size="small" variant="outlined" href={project.exportUrl} download component="a"
+                    startIcon={<DownloadIcon />}>Download MP4</Button>
+            {project.srtUrl && (
+              <Button size="small" variant="outlined" color="secondary" href={project.srtUrl} download
+                      component="a" startIcon={<SubtitlesIcon />}>Download SRT</Button>
+            )}
+            <Button size="small" variant="text" onClick={() => navigate(`/projects/${projectId}/timeline`)}>
+              Edit timeline →
+            </Button>
+          </Stack>
+        </Alert>
+      )}
+
+      {panels.length === 0 ? (
         <Alert severity="info">
           No animated panels yet. Go to the Storyboard editor and click "Animate all panels" first.
         </Alert>
@@ -139,15 +150,7 @@ export default function PreviewPage() {
           <CardContent>
             <Stack spacing={2}>
               {/* Main video player */}
-              <Box
-                sx={{
-                  aspectRatio: '16 / 9',
-                  borderRadius: 2,
-                  bgcolor: 'black',
-                  overflow: 'hidden',
-                  position: 'relative',
-                }}
-              >
+              <Box sx={{ aspectRatio: '16 / 9', borderRadius: 2, bgcolor: 'black', overflow: 'hidden', position: 'relative' }}>
                 <Box
                   component="video"
                   ref={videoRef}
@@ -157,65 +160,44 @@ export default function PreviewPage() {
                   onPause={() => setIsPlaying(false)}
                   sx={{ width: '100%', height: '100%', objectFit: 'contain' }}
                 />
-
-                {/* Audio indicator overlays */}
                 <Stack direction="row" spacing={0.5} sx={{ position: 'absolute', top: 8, right: 8 }}>
                   {current?.voiceUrl && (
-                    <Chip
-                      icon={<MicIcon sx={{ fontSize: '14px !important' }} />}
-                      label="Voice"
-                      size="small"
-                      sx={{ bgcolor: 'rgba(0,0,0,0.6)', color: 'white', '& .MuiChip-icon': { color: 'secondary.light' } }}
-                    />
+                    <Chip icon={<MicIcon sx={{ fontSize: '14px !important' }} />} label="Voice" size="small"
+                          sx={{ bgcolor: 'rgba(0,0,0,0.6)', color: 'white', '& .MuiChip-icon': { color: 'secondary.light' } }} />
                   )}
                   {project?.musicUrl && (
-                    <Chip
-                      icon={<MusicNoteIcon sx={{ fontSize: '14px !important' }} />}
-                      label={project.dominantMood ?? 'music'}
-                      size="small"
-                      sx={{ bgcolor: 'rgba(0,0,0,0.6)', color: 'white', '& .MuiChip-icon': { color: 'primary.light' } }}
-                    />
+                    <Chip icon={<MusicNoteIcon sx={{ fontSize: '14px !important' }} />}
+                          label={project.dominantMood ?? 'music'} size="small"
+                          sx={{ bgcolor: 'rgba(0,0,0,0.6)', color: 'white', '& .MuiChip-icon': { color: 'primary.light' } }} />
                   )}
                 </Stack>
               </Box>
 
               {/* Controls */}
               <Stack direction="row" spacing={1} alignItems="center" justifyContent="center">
-                <Button
-                  onClick={() => goTo(currentIndex - 1)}
-                  disabled={currentIndex === 0}
-                  variant="outlined"
-                  size="small"
-                >
-                  <SkipPreviousIcon />
-                </Button>
+                <Button onClick={() => goTo(currentIndex - 1)} disabled={currentIndex === 0}
+                        variant="outlined" size="small"><SkipPreviousIcon /></Button>
                 <Button onClick={togglePlay} variant="contained" size="large" sx={{ minWidth: 100 }}>
                   {isPlaying ? <PauseIcon /> : <PlayArrowIcon />}
                 </Button>
-                <Button
-                  onClick={() => goTo(currentIndex + 1)}
-                  disabled={currentIndex >= videoPanels.length - 1}
-                  variant="outlined"
-                  size="small"
-                >
-                  <SkipNextIcon />
-                </Button>
+                <Button onClick={() => goTo(currentIndex + 1)} disabled={currentIndex >= panels.length - 1}
+                        variant="outlined" size="small"><SkipNextIcon /></Button>
               </Stack>
 
-              {/* Progress bar */}
+              {/* Progress */}
               <Box>
                 <LinearProgress
                   variant="determinate"
-                  value={videoPanels.length > 1 ? (currentIndex / (videoPanels.length - 1)) * 100 : 100}
+                  value={panels.length > 1 ? (currentIndex / (panels.length - 1)) * 100 : 100}
                   sx={{ borderRadius: 1, height: 6 }}
                 />
                 <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
-                  Panel {currentIndex + 1} of {videoPanels.length}
+                  Panel {currentIndex + 1} of {panels.length}
                   {current && ` — Page ${current.pageNumber}, Panel ${current.panelNumber}`}
                 </Typography>
               </Box>
 
-              {/* Voice audio for current panel (visible player) */}
+              {/* Voice player */}
               {current?.voiceUrl && (
                 <Box sx={{ p: 1.5, bgcolor: 'background.default', borderRadius: 1 }}>
                   <Stack direction="row" spacing={1} alignItems="center" mb={0.5}>
@@ -246,32 +228,18 @@ export default function PreviewPage() {
 
               <Divider />
 
-              {/* Panel strip */}
+              {/* Thumbnail strip */}
               <Stack direction="row" spacing={1} sx={{ overflowX: 'auto', pb: 1 }}>
-                {videoPanels.map((panel, idx) => (
-                  <Box
-                    key={panel.id}
-                    onClick={() => goTo(idx)}
-                    sx={{
-                      flexShrink: 0,
-                      width: 100,
-                      cursor: 'pointer',
-                      border: '2px solid',
-                      borderColor: idx === currentIndex ? 'primary.main' : 'transparent',
-                      borderRadius: 1,
-                      overflow: 'hidden',
-                      opacity: idx === currentIndex ? 1 : 0.6,
-                      transition: 'all 0.2s',
-                      '&:hover': { opacity: 1, borderColor: 'primary.light' },
-                    }}
-                  >
-                    <Box
-                      component="img"
-                      src={panel.imageUrl}
-                      alt={`Panel ${panel.panelNumber}`}
-                      sx={{ width: '100%', height: 60, objectFit: 'cover', display: 'block' }}
-                      onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
-                    />
+                {panels.map((panel, idx) => (
+                  <Box key={panel.id} onClick={() => goTo(idx)} sx={{
+                    flexShrink: 0, width: 100, cursor: 'pointer', border: '2px solid',
+                    borderColor: idx === currentIndex ? 'primary.main' : 'transparent',
+                    borderRadius: 1, overflow: 'hidden', opacity: idx === currentIndex ? 1 : 0.6,
+                    transition: 'all 0.2s', '&:hover': { opacity: 1, borderColor: 'primary.light' },
+                  }}>
+                    <Box component="img" src={panel.imageUrl} alt={`Panel ${panel.panelNumber}`}
+                         sx={{ width: '100%', height: 60, objectFit: 'cover', display: 'block' }}
+                         onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
                     <Stack direction="row" spacing={0.25} sx={{ p: 0.5, justifyContent: 'center' }}>
                       <Typography variant="caption" sx={{ textAlign: 'center' }}>{idx + 1}</Typography>
                       {panel.voiceUrl && <MicIcon sx={{ fontSize: 10, color: 'secondary.main', alignSelf: 'center' }} />}
@@ -282,21 +250,41 @@ export default function PreviewPage() {
 
               <Divider />
 
-              {/* Download */}
-              <Stack direction="row" justifyContent="space-between" alignItems="center">
+              {/* Download row */}
+              <Stack direction="row" justifyContent="space-between" alignItems="center" flexWrap="wrap" gap={1}>
                 <Box>
                   <Typography variant="h6">{project?.title ?? 'Loading...'}</Typography>
                   <Typography variant="body2" color="text.secondary">
-                    Full MP4 merge (video + audio) coming in Phase 6
+                    {project?.exportUrl
+                      ? 'Final MP4 ready — includes video, voice & music'
+                      : 'Go to Timeline editor to merge and download the final MP4'}
                   </Typography>
                 </Box>
-                <Tooltip title="Full MP4 export available in Phase 6">
-                  <span>
-                    <Button variant="contained" startIcon={<DownloadIcon />} disabled>
-                      Download MP4
-                    </Button>
-                  </span>
-                </Tooltip>
+                <Stack direction="row" spacing={1}>
+                  {project?.exportUrl ? (
+                    <>
+                      <Button variant="contained" startIcon={<DownloadIcon />}
+                              href={project.exportUrl} download component="a">
+                        Download MP4
+                      </Button>
+                      {project.srtUrl && (
+                        <Button variant="outlined" color="secondary" startIcon={<SubtitlesIcon />}
+                                href={project.srtUrl} download component="a">
+                          Download SRT
+                        </Button>
+                      )}
+                    </>
+                  ) : (
+                    <Tooltip title="Merge panels first in the Timeline editor">
+                      <span>
+                        <Button variant="contained" startIcon={<DownloadIcon />}
+                                onClick={() => navigate(`/projects/${projectId}/timeline`)}>
+                          Go to Timeline →
+                        </Button>
+                      </span>
+                    </Tooltip>
+                  )}
+                </Stack>
               </Stack>
             </Stack>
           </CardContent>

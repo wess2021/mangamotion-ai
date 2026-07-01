@@ -40,9 +40,11 @@ public class Project {
 
     private String musicPath;
     private String dominantMood;
+    private String exportPath;
+    private String srtPath;
 
     @OneToMany(mappedBy = "project", cascade = CascadeType.ALL, orphanRemoval = true)
-    @OrderBy("pageNumber ASC, panelNumber ASC")
+    @OrderBy("sortOrder ASC")
     private List<Panel> panels = new ArrayList<>();
 
     @PreUpdate

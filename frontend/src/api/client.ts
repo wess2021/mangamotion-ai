@@ -32,6 +32,8 @@ export interface Project {
   updatedAt: string
   musicUrl: string | null
   dominantMood: string | null
+  exportUrl: string | null
+  srtUrl: string | null
 }
 
 export interface Panel {
@@ -83,5 +85,18 @@ export async function triggerVideoGeneration(projectId: string) {
 
 export async function triggerAudioGeneration(projectId: string) {
   const { data } = await api.post<{ message: string }>(`/projects/${projectId}/generate-audio`)
+  return data
+}
+
+export async function triggerExport(projectId: string) {
+  const { data } = await api.post<{ message: string }>(`/projects/${projectId}/export`)
+  return data
+}
+
+export async function updatePanelOrder(projectId: string, panelIds: string[]) {
+  const { data } = await api.put<{ message: string }>(
+    `/projects/${projectId}/panels/order`,
+    panelIds,
+  )
   return data
 }

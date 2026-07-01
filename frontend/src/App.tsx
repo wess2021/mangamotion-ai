@@ -6,6 +6,7 @@ import UploadPage from './pages/UploadPage'
 import ProcessingPage from './pages/ProcessingPage'
 import StoryboardPage from './pages/StoryboardPage'
 import PreviewPage from './pages/PreviewPage'
+import TimelinePage from './pages/TimelinePage'
 
 const theme = createTheme({
   palette: {
@@ -34,6 +35,7 @@ export default function App() {
             <Route path="projects/:projectId/processing" element={<ProcessingPage />} />
             <Route path="projects/:projectId/storyboard" element={<StoryboardPage />} />
             <Route path="projects/:projectId/preview" element={<PreviewPage />} />
+            <Route path="projects/:projectId/timeline" element={<TimelinePage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
         </Routes>

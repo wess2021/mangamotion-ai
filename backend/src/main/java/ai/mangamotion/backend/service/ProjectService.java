@@ -105,9 +105,10 @@ public class ProjectService {
     }
 
     private ProjectResponse toResponse(Project project) {
-        String musicUrl = project.getMusicPath() != null
-                ? "/api/projects/" + project.getId() + "/audio/music"
-                : null;
+        String base     = "/api/projects/" + project.getId();
+        String musicUrl  = project.getMusicPath()  != null ? base + "/audio/music"  : null;
+        String exportUrl = project.getExportPath() != null ? base + "/export/video" : null;
+        String srtUrl    = project.getSrtPath()    != null ? base + "/export/srt"   : null;
         return new ProjectResponse(
                 project.getId(),
                 project.getTitle(),
@@ -118,7 +119,9 @@ public class ProjectService {
                 project.getCreatedAt(),
                 project.getUpdatedAt(),
                 musicUrl,
-                project.getDominantMood()
+                project.getDominantMood(),
+                exportUrl,
+                srtUrl
         );
     }
 

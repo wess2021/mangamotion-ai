@@ -39,10 +39,14 @@
 - [x] Preview page — background music loop + voice playback per panel + audio indicators in player
 
 ## Phase 6 — Merge & Export
-- [ ] Merge video clips using FFmpeg
-- [ ] Timeline editor in the frontend
-- [ ] Subtitle generation (EN / FR / AR)
-- [ ] Download final MP4
+- [x] FFmpeg concat all panel videos into single MP4 with mixed audio (music + per-panel voices timed by timestamp)
+- [x] SRT subtitle generation from OCR text with per-panel timestamps
+- [x] `/api/export/merge` bulk endpoint — merges video + audio + subtitles in one call
+- [x] Export video & SRT download endpoints (`/api/projects/{id}/export/video|srt`)
+- [x] `POST /api/projects/{id}/export` — trigger merge at any time; re-run after reordering
+- [x] Timeline editor page — horizontal panel strip with up/down reorder, `PUT /api/projects/{id}/panels/order`
+- [x] Preview page — Download MP4 + Download SRT buttons enabled when export is ready
+- [x] Full pipeline runs automatically: extract → detect → OCR → prompts → video → audio → merge
 
 ## Phase 7 — Polish & Advanced Features
 - [ ] Performance optimisation
