@@ -1,0 +1,38 @@
+# Dependencies
+node_modules/
+frontend/dist/
+
+# Java / Maven
+backend/target/
+backend/.mvn/wrapper/maven-wrapper.jar
+
+# Python
+ai-service/.venv/
+ai-service/__pycache__/
+ai-service/**/__pycache__/
+ai-service/.pytest_cache/
+*.pyc
+
+# Environment
+.env
+.env.local
+*.env
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Project data
+storage/
+uploads/
+outputs/
+*.mp4
+*.zip
+
+# Logs
+*.log

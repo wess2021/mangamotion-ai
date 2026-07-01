@@ -1,0 +1,29 @@
+spring:
+  application:
+    name: mangamotion-backend
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/mangamotion}
+    username: ${SPRING_DATASOURCE_USERNAME:mangamotion}
+    password: ${SPRING_DATASOURCE_PASSWORD:mangamotion}
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+  servlet:
+    multipart:
+      max-file-size: 500MB
+      max-request-size: 500MB
+
+server:
+  port: 8080
+
+mangamotion:
+  ai-service-url: ${AI_SERVICE_URL:http://localhost:8000}
+  storage-path: ${STORAGE_PATH:./storage}
+
+logging:
+  level:
+    ai.mangamotion: DEBUG

@@ -1,0 +1,14 @@
+fastapi==0.115.6
+uvicorn[standard]==0.32.1
+python-multipart==0.0.20
+pillow==11.0.0
+opencv-python-headless==4.10.0.84
+numpy==2.0.2
+pydantic==2.10.3
+pydantic-settings==2.6.1
+httpx==0.28.1
+
+# Phase 3+ (install when GPU/models ready)
+# easyocr
+# torch
+# transformers
