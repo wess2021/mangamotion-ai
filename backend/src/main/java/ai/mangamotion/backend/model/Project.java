@@ -38,6 +38,9 @@ public class Project {
     @Column(nullable = false)
     private Instant updatedAt = Instant.now();
 
+    private String musicPath;
+    private String dominantMood;
+
     @OneToMany(mappedBy = "project", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("pageNumber ASC, panelNumber ASC")
     private List<Panel> panels = new ArrayList<>();

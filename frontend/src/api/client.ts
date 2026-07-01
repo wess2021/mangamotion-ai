@@ -30,6 +30,8 @@ export interface Project {
   panelCount: number
   createdAt: string
   updatedAt: string
+  musicUrl: string | null
+  dominantMood: string | null
 }
 
 export interface Panel {
@@ -40,6 +42,8 @@ export interface Panel {
   ocrText: string | null
   cinematicPrompt: string | null
   videoUrl: string | null
+  voiceUrl: string | null
+  sfxUrl: string | null
   sortOrder: number
 }
 
@@ -73,8 +77,11 @@ export async function getPanels(projectId: string) {
 }
 
 export async function triggerVideoGeneration(projectId: string) {
-  const { data } = await api.post<{ message: string; projectId: string }>(
-    `/projects/${projectId}/generate-videos`
-  )
+  const { data } = await api.post<{ message: string }>(`/projects/${projectId}/generate-videos`)
+  return data
+}
+
+export async function triggerAudioGeneration(projectId: string) {
+  const { data } = await api.post<{ message: string }>(`/projects/${projectId}/generate-audio`)
   return data
 }

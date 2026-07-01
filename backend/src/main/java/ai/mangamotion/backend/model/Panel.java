@@ -41,6 +41,8 @@ public class Panel {
     private String cinematicPrompt;
 
     private String videoPath;
+    private String voicePath;
+    private String sfxPath;
 
     @Column(nullable = false)
     private int sortOrder;

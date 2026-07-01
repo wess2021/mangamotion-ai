@@ -9,6 +9,7 @@ import {
   Divider,
   LinearProgress,
   Stack,
+  Tooltip,
   Typography,
 } from '@mui/material'
 import DownloadIcon from '@mui/icons-material/Download'
@@ -17,6 +18,8 @@ import PauseIcon from '@mui/icons-material/Pause'
 import SkipNextIcon from '@mui/icons-material/SkipNext'
 import SkipPreviousIcon from '@mui/icons-material/SkipPrevious'
 import MovieIcon from '@mui/icons-material/Movie'
+import MicIcon from '@mui/icons-material/Mic'
+import MusicNoteIcon from '@mui/icons-material/MusicNote'
 import { useParams } from 'react-router-dom'
 import { getPanels, getProject, type Panel, type Project } from '../api/client'
 
@@ -28,6 +31,8 @@ export default function PreviewPage() {
   const [currentIndex, setCurrentIndex] = useState(0)
   const [isPlaying, setIsPlaying] = useState(false)
   const videoRef = useRef<HTMLVideoElement>(null)
+  const voiceRef = useRef<HTMLAudioElement>(null)
+  const musicRef = useRef<HTMLAudioElement>(null)
 
   useEffect(() => {
     if (!projectId) return
@@ -49,13 +54,24 @@ export default function PreviewPage() {
       videoRef.current.load()
       if (isPlaying) videoRef.current.play().catch(() => {})
     }
-  }, [currentIndex, current?.videoUrl])
+    // Auto-play voice for this panel
+    if (voiceRef.current) {
+      if (current?.voiceUrl) {
+        voiceRef.current.src = current.voiceUrl
+        voiceRef.current.load()
+        if (isPlaying) voiceRef.current.play().catch(() => {})
+      } else {
+        voiceRef.current.pause()
+      }
+    }
+  }, [currentIndex, current?.videoUrl, current?.voiceUrl])
 
   function handleVideoEnded() {
     if (currentIndex < videoPanels.length - 1) {
       setCurrentIndex((i) => i + 1)
     } else {
       setIsPlaying(false)
+      if (musicRef.current) musicRef.current.pause()
     }
   }
 
@@ -63,8 +79,12 @@ export default function PreviewPage() {
     if (!videoRef.current) return
     if (isPlaying) {
       videoRef.current.pause()
+      voiceRef.current?.pause()
+      musicRef.current?.pause()
     } else {
       videoRef.current.play().catch(() => {})
+      if (current?.voiceUrl && voiceRef.current) voiceRef.current.play().catch(() => {})
+      if (project?.musicUrl && musicRef.current) musicRef.current.play().catch(() => {})
     }
     setIsPlaying(!isPlaying)
   }
@@ -83,17 +103,32 @@ export default function PreviewPage() {
             Video preview
           </Typography>
           <Typography color="text.secondary">
-            Watch your animated panels in sequence and download the final export.
+            Watch your animated panels in sequence. Voice and music play automatically.
           </Typography>
         </Box>
-        <Chip
-          icon={<MovieIcon />}
-          label={`${videoPanels.length} / ${panels.length + videoPanels.length} panels animated`}
-          color={videoPanels.length > 0 ? 'success' : 'default'}
-        />
+        <Stack direction="row" spacing={1} alignItems="flex-start" flexWrap="wrap">
+          <Chip
+            icon={<MovieIcon />}
+            label={`${videoPanels.length} animated`}
+            color={videoPanels.length > 0 ? 'success' : 'default'}
+          />
+          {project?.musicUrl && (
+            <Chip
+              icon={<MusicNoteIcon />}
+              label={project.dominantMood ?? 'music'}
+              color="primary"
+            />
+          )}
+        </Stack>
       </Stack>
 
       {error && <Alert severity="error">{error}</Alert>}
+
+      {/* Hidden audio elements */}
+      <Box component="audio" ref={voiceRef} sx={{ display: 'none' }} />
+      {project?.musicUrl && (
+        <Box component="audio" ref={musicRef} src={project.musicUrl} loop sx={{ display: 'none' }} />
+      )}
 
       {videoPanels.length === 0 ? (
         <Alert severity="info">
@@ -122,6 +157,26 @@ export default function PreviewPage() {
                   onPause={() => setIsPlaying(false)}
                   sx={{ width: '100%', height: '100%', objectFit: 'contain' }}
                 />
+
+                {/* Audio indicator overlays */}
+                <Stack direction="row" spacing={0.5} sx={{ position: 'absolute', top: 8, right: 8 }}>
+                  {current?.voiceUrl && (
+                    <Chip
+                      icon={<MicIcon sx={{ fontSize: '14px !important' }} />}
+                      label="Voice"
+                      size="small"
+                      sx={{ bgcolor: 'rgba(0,0,0,0.6)', color: 'white', '& .MuiChip-icon': { color: 'secondary.light' } }}
+                    />
+                  )}
+                  {project?.musicUrl && (
+                    <Chip
+                      icon={<MusicNoteIcon sx={{ fontSize: '14px !important' }} />}
+                      label={project.dominantMood ?? 'music'}
+                      size="small"
+                      sx={{ bgcolor: 'rgba(0,0,0,0.6)', color: 'white', '& .MuiChip-icon': { color: 'primary.light' } }}
+                    />
+                  )}
+                </Stack>
               </Box>
 
               {/* Controls */}
@@ -160,6 +215,35 @@ export default function PreviewPage() {
                 </Typography>
               </Box>
 
+              {/* Voice audio for current panel (visible player) */}
+              {current?.voiceUrl && (
+                <Box sx={{ p: 1.5, bgcolor: 'background.default', borderRadius: 1 }}>
+                  <Stack direction="row" spacing={1} alignItems="center" mb={0.5}>
+                    <MicIcon sx={{ fontSize: 14, color: 'secondary.main' }} />
+                    <Typography variant="caption" color="text.secondary">Dialogue voice</Typography>
+                    {current.ocrText && (
+                      <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic', ml: 1 }}>
+                        "{current.ocrText.slice(0, 60)}{current.ocrText.length > 60 ? '…' : ''}"
+                      </Typography>
+                    )}
+                  </Stack>
+                  <Box component="audio" controls src={current.voiceUrl} sx={{ width: '100%', height: 32 }} />
+                </Box>
+              )}
+
+              {/* Background music player */}
+              {project?.musicUrl && (
+                <Box sx={{ p: 1.5, bgcolor: 'background.default', borderRadius: 1 }}>
+                  <Stack direction="row" spacing={1} alignItems="center" mb={0.5}>
+                    <MusicNoteIcon sx={{ fontSize: 14, color: 'primary.main' }} />
+                    <Typography variant="caption" color="text.secondary">
+                      Background music — {project.dominantMood ?? 'ambient'} mood
+                    </Typography>
+                  </Stack>
+                  <Box component="audio" controls src={project.musicUrl} loop sx={{ width: '100%', height: 32 }} />
+                </Box>
+              )}
+
               <Divider />
 
               {/* Panel strip */}
@@ -188,9 +272,10 @@ export default function PreviewPage() {
                       sx={{ width: '100%', height: 60, objectFit: 'cover', display: 'block' }}
                       onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
                     />
-                    <Typography variant="caption" sx={{ display: 'block', p: 0.5, textAlign: 'center' }}>
-                      {idx + 1}
-                    </Typography>
+                    <Stack direction="row" spacing={0.25} sx={{ p: 0.5, justifyContent: 'center' }}>
+                      <Typography variant="caption" sx={{ textAlign: 'center' }}>{idx + 1}</Typography>
+                      {panel.voiceUrl && <MicIcon sx={{ fontSize: 10, color: 'secondary.main', alignSelf: 'center' }} />}
+                    </Stack>
                   </Box>
                 ))}
               </Stack>
@@ -202,7 +287,7 @@ export default function PreviewPage() {
                 <Box>
                   <Typography variant="h6">{project?.title ?? 'Loading...'}</Typography>
                   <Typography variant="body2" color="text.secondary">
-                    Full MP4 merge via FFmpeg coming in Phase 6
+                    Full MP4 merge (video + audio) coming in Phase 6
                   </Typography>
                 </Box>
                 <Tooltip title="Full MP4 export available in Phase 6">

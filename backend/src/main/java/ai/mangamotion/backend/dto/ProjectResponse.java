@@ -13,6 +13,8 @@ public record ProjectResponse(
         int progressPercent,
         int panelCount,
         Instant createdAt,
-        Instant updatedAt
+        Instant updatedAt,
+        String musicUrl,
+        String dominantMood
 ) {
 }

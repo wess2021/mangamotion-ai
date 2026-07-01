@@ -10,6 +10,8 @@ public record PanelResponse(
         String ocrText,
         String cinematicPrompt,
         String videoUrl,
+        String voiceUrl,
+        String sfxUrl,
         int sortOrder
 ) {
 }

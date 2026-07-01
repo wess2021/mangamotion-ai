@@ -11,15 +11,23 @@ import {
   LinearProgress,
   Stack,
   TextField,
-  Tooltip,
   Typography,
 } from '@mui/material'
 import PlayArrowIcon from '@mui/icons-material/PlayArrow'
 import TextSnippetIcon from '@mui/icons-material/TextSnippet'
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome'
 import MovieIcon from '@mui/icons-material/Movie'
+import MicIcon from '@mui/icons-material/Mic'
+import MusicNoteIcon from '@mui/icons-material/MusicNote'
 import { useNavigate, useParams } from 'react-router-dom'
-import { getPanels, getProject, triggerVideoGeneration, type Panel, type Project } from '../api/client'
+import {
+  getPanels,
+  getProject,
+  triggerVideoGeneration,
+  triggerAudioGeneration,
+  type Panel,
+  type Project,
+} from '../api/client'
 
 function PanelCard({ panel, prompt, onPromptChange }: {
   panel: Panel
@@ -75,14 +83,36 @@ function PanelCard({ panel, prompt, onPromptChange }: {
           />
         )}
 
-        {panel.videoUrl && !videoError && (
-          <Chip
-            icon={<MovieIcon />}
-            label="Animated"
-            color="success"
-            size="small"
-            sx={{ alignSelf: 'flex-start' }}
-          />
+        {/* Status chips */}
+        <Stack direction="row" spacing={1} flexWrap="wrap">
+          {panel.videoUrl && !videoError && (
+            <Chip icon={<MovieIcon />} label="Animated" color="success" size="small" />
+          )}
+          {panel.voiceUrl && (
+            <Chip icon={<MicIcon />} label="Voice" color="secondary" size="small" />
+          )}
+          {panel.sfxUrl && (
+            <Chip label="💥 SFX" color="warning" size="small" />
+          )}
+        </Stack>
+
+        {/* Voice audio player */}
+        {panel.voiceUrl && (
+          <Box>
+            <Stack direction="row" spacing={0.5} alignItems="center" mb={0.5}>
+              <MicIcon sx={{ fontSize: 14, color: 'secondary.main' }} />
+              <Typography variant="caption" color="text.secondary">Voice</Typography>
+            </Stack>
+            <Box component="audio" controls src={panel.voiceUrl} sx={{ width: '100%', height: 32 }} />
+          </Box>
+        )}
+
+        {/* SFX audio player */}
+        {panel.sfxUrl && (
+          <Box>
+            <Typography variant="caption" color="text.secondary">Sound Effect</Typography>
+            <Box component="audio" controls src={panel.sfxUrl} sx={{ width: '100%', height: 32 }} />
+          </Box>
         )}
 
         {/* OCR text */}
@@ -131,7 +161,10 @@ export default function StoryboardPage() {
   const [prompts, setPrompts] = useState<Record<string, string>>({})
   const [error, setError] = useState<string | null>(null)
   const [animating, setAnimating] = useState(false)
+  const [generatingAudio, setGeneratingAudio] = useState(false)
   const [pollInterval, setPollInterval] = useState<ReturnType<typeof setInterval> | null>(null)
+
+  const AUDIO_STATUSES = ['VOICE_GENERATION', 'AUDIO_GENERATION']
 
   const loadData = useCallback(async () => {
     if (!projectId) return
@@ -148,8 +181,13 @@ export default function StoryboardPage() {
 
       if (projectData.status === 'VIDEO_GENERATION') {
         setAnimating(true)
+        setGeneratingAudio(false)
+      } else if (AUDIO_STATUSES.includes(projectData.status)) {
+        setAnimating(false)
+        setGeneratingAudio(true)
       } else {
         setAnimating(false)
+        setGeneratingAudio(false)
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load storyboard')
@@ -161,15 +199,16 @@ export default function StoryboardPage() {
   }, [loadData])
 
   useEffect(() => {
-    if (animating && !pollInterval) {
+    const busy = animating || generatingAudio
+    if (busy && !pollInterval) {
       const id = setInterval(loadData, 3000)
       setPollInterval(id)
-    } else if (!animating && pollInterval) {
+    } else if (!busy && pollInterval) {
       clearInterval(pollInterval)
       setPollInterval(null)
     }
     return () => { if (pollInterval) clearInterval(pollInterval) }
-  }, [animating, pollInterval, loadData])
+  }, [animating, generatingAudio, pollInterval, loadData])
 
   async function handleAnimateAll() {
     if (!projectId) return
@@ -182,6 +221,17 @@ export default function StoryboardPage() {
     }
   }
 
+  async function handleGenerateAudio() {
+    if (!projectId) return
+    try {
+      setGeneratingAudio(true)
+      await triggerAudioGeneration(projectId)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to start audio generation')
+      setGeneratingAudio(false)
+    }
+  }
+
   function handlePromptChange(panelId: string, value: string) {
     setPrompts((prev) => ({ ...prev, [panelId]: value }))
   }
@@ -189,7 +239,10 @@ export default function StoryboardPage() {
   if (!projectId) return <Alert severity="error">Missing project ID</Alert>
 
   const animatedCount = panels.filter((p) => p.videoUrl).length
+  const voiceCount = panels.filter((p) => p.voiceUrl).length
+  const sfxCount = panels.filter((p) => p.sfxUrl).length
   const hasVideos = animatedCount > 0
+  const isBusy = animating || generatingAudio
 
   return (
     <Stack spacing={3}>
@@ -199,17 +252,26 @@ export default function StoryboardPage() {
             Storyboard editor
           </Typography>
           <Typography color="text.secondary">
-            Review OCR text and cinematic prompts. Animate panels or go straight to preview.
+            Review OCR text and cinematic prompts. Animate panels, generate audio, or go to preview.
           </Typography>
         </Box>
-        <Stack direction="row" spacing={1} alignItems="flex-start">
+        <Stack direction="row" spacing={1} alignItems="flex-start" flexWrap="wrap">
           <Button
             variant="outlined"
             startIcon={animating ? <CircularProgress size={16} /> : <AutoAwesomeIcon />}
             onClick={handleAnimateAll}
-            disabled={animating || panels.length === 0}
+            disabled={isBusy || panels.length === 0}
           >
             {animating ? 'Animating…' : 'Animate all panels'}
+          </Button>
+          <Button
+            variant="outlined"
+            color="secondary"
+            startIcon={generatingAudio ? <CircularProgress size={16} color="secondary" /> : <MicIcon />}
+            onClick={handleGenerateAudio}
+            disabled={isBusy || panels.length === 0}
+          >
+            {generatingAudio ? 'Generating audio…' : 'Generate audio'}
           </Button>
           <Button
             variant="contained"
@@ -224,34 +286,53 @@ export default function StoryboardPage() {
 
       {error && <Alert severity="error">{error}</Alert>}
 
-      {animating && (
+      {isBusy && (
         <Box>
           <Stack direction="row" spacing={1} alignItems="center" mb={1}>
             <CircularProgress size={16} />
             <Typography variant="body2" color="text.secondary">
-              Animating panels… {animatedCount}/{panels.length} done
+              {animating
+                ? `Animating panels… ${animatedCount}/${panels.length} done`
+                : `Generating audio… ${project?.progressMessage}`}
             </Typography>
           </Stack>
           <LinearProgress
-            variant="determinate"
-            value={panels.length > 0 ? (animatedCount / panels.length) * 100 : 0}
+            variant={animating ? 'determinate' : 'indeterminate'}
+            value={animating && panels.length > 0 ? (animatedCount / panels.length) * 100 : undefined}
           />
         </Box>
       )}
 
-      <Stack direction="row" spacing={2} alignItems="center">
+      <Stack direction="row" spacing={2} alignItems="center" flexWrap="wrap">
         <Typography variant="subtitle1" color="text.secondary">
           {project?.title} — {panels.length} panels
         </Typography>
         {hasVideos && (
-          <Chip
-            icon={<MovieIcon />}
-            label={`${animatedCount} animated`}
-            color="success"
-            size="small"
-          />
+          <Chip icon={<MovieIcon />} label={`${animatedCount} animated`} color="success" size="small" />
+        )}
+        {voiceCount > 0 && (
+          <Chip icon={<MicIcon />} label={`${voiceCount} voices`} color="secondary" size="small" />
+        )}
+        {sfxCount > 0 && (
+          <Chip label={`💥 ${sfxCount} SFX`} color="warning" size="small" />
+        )}
+        {project?.musicUrl && (
+          <Chip icon={<MusicNoteIcon />} label={`Music: ${project.dominantMood ?? 'ambient'}`} color="primary" size="small" />
         )}
       </Stack>
+
+      {/* Background music player */}
+      {project?.musicUrl && (
+        <Box sx={{ p: 2, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid', borderColor: 'primary.dark' }}>
+          <Stack direction="row" spacing={1} alignItems="center" mb={1}>
+            <MusicNoteIcon sx={{ color: 'primary.main', fontSize: 18 }} />
+            <Typography variant="subtitle2">
+              Background Music — {project.dominantMood ?? 'ambient'} mood
+            </Typography>
+          </Stack>
+          <Box component="audio" controls src={project.musicUrl} sx={{ width: '100%' }} />
+        </Box>
+      )}
 
       <Grid container spacing={2}>
         {panels.map((panel) => (

@@ -28,9 +28,15 @@
 - [x] Preview page — sequential video player with timeline strip + panel navigation
 
 ## Phase 5 — Audio Generation
-- [ ] Voice generation — per-character voices using XTTS v2
-- [ ] Background music generation — mood-based using AudioCraft / Stable Audio Open
-- [ ] Sound effects generation — using AudioCraft
+- [x] Voice generation — per-panel TTS using gTTS mock (Google TTS, free); XTTS v2 local GPU backend; ElevenLabs API backend
+- [x] Background music generation — mood-based FFmpeg ambient synthesis (mock); configurable via `AUDIO_BACKEND`
+- [x] Sound effects generation — FFmpeg synthesised SFX matched to OCR keywords (BOOM, CRASH, SLASH, etc.)
+- [x] `/api/audio/pipeline` bulk endpoint — generates voices + music + SFX in one call
+- [x] Panel voice & SFX serve endpoints (`/api/projects/{id}/panels/{panelId}/voice|sfx`)
+- [x] Project music serve endpoint (`/api/projects/{id}/audio/music`)
+- [x] `POST /api/projects/{id}/generate-audio` — re-trigger audio generation at any time
+- [x] Storyboard editor — audio badges (Voice, SFX, Music) + inline audio players per panel
+- [x] Preview page — background music loop + voice playback per panel + audio indicators in player
 
 ## Phase 6 — Merge & Export
 - [ ] Merge video clips using FFmpeg

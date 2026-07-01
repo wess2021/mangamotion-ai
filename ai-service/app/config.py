@@ -13,6 +13,8 @@ class Settings(BaseSettings):
     video_backend: str = "mock"
     video_duration: float = 6.0
 
+    audio_backend: str = "mock"
+
     class Config:
         env_file = ".env"
 

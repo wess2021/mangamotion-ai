@@ -96,7 +96,7 @@ public class ProjectService {
                 .orElseThrow(() -> new IllegalArgumentException("Project not found: " + id));
     }
 
-    public ai.mangamotion.backend.model.Panel findPanel(UUID projectId, UUID panelId) {
+    public Panel findPanel(UUID projectId, UUID panelId) {
         Project project = findProject(projectId);
         return project.getPanels().stream()
                 .filter(p -> p.getId().equals(panelId))
@@ -105,6 +105,9 @@ public class ProjectService {
     }
 
     private ProjectResponse toResponse(Project project) {
+        String musicUrl = project.getMusicPath() != null
+                ? "/api/projects/" + project.getId() + "/audio/music"
+                : null;
         return new ProjectResponse(
                 project.getId(),
                 project.getTitle(),
@@ -113,14 +116,18 @@ public class ProjectService {
                 project.getProgressPercent(),
                 project.getPanels().size(),
                 project.getCreatedAt(),
-                project.getUpdatedAt()
+                project.getUpdatedAt(),
+                musicUrl,
+                project.getDominantMood()
         );
     }
 
     private PanelResponse toPanelResponse(Panel panel) {
-        String imageUrl = "/api/projects/" + panel.getProject().getId() + "/panels/" + panel.getId() + "/image";
-        String videoUrl = panel.getVideoPath() == null ? null
-                : "/api/projects/" + panel.getProject().getId() + "/panels/" + panel.getId() + "/video";
+        String base = "/api/projects/" + panel.getProject().getId() + "/panels/" + panel.getId();
+        String imageUrl  = base + "/image";
+        String videoUrl  = panel.getVideoPath()  != null ? base + "/video"  : null;
+        String voiceUrl  = panel.getVoicePath()  != null ? base + "/voice"  : null;
+        String sfxUrl    = panel.getSfxPath()    != null ? base + "/sfx"    : null;
         return new PanelResponse(
                 panel.getId(),
                 panel.getPageNumber(),
@@ -129,6 +136,8 @@ public class ProjectService {
                 panel.getOcrText(),
                 panel.getCinematicPrompt(),
                 videoUrl,
+                voiceUrl,
+                sfxUrl,
                 panel.getSortOrder()
         );
     }

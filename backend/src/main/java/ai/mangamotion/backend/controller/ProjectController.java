@@ -68,49 +68,68 @@ public class ProjectController {
     public ResponseEntity<Map<String, String>> generateVideos(@PathVariable UUID id) {
         Project project = projectService.findProject(id);
         processingService.generateVideosAsync(project.getId());
-        return ResponseEntity.accepted().body(Map.of(
-                "message", "Video generation started",
-                "projectId", id.toString()
-        ));
+        return ResponseEntity.accepted().body(Map.of("message", "Video generation started"));
     }
+
+    @PostMapping("/projects/{id}/generate-audio")
+    public ResponseEntity<Map<String, String>> generateAudio(@PathVariable UUID id) {
+        Project project = projectService.findProject(id);
+        processingService.generateAudioAsync(project.getId());
+        return ResponseEntity.accepted().body(Map.of("message", "Audio generation started"));
+    }
+
+    // ─── Static file serve endpoints ────────────────────────────────────────
 
     @GetMapping("/projects/{projectId}/panels/{panelId}/image")
     public ResponseEntity<Resource> getPanelImage(
-            @PathVariable UUID projectId,
-            @PathVariable UUID panelId
-    ) throws IOException {
+            @PathVariable UUID projectId, @PathVariable UUID panelId) throws IOException {
         Panel panel = projectService.findPanel(projectId, panelId);
-        Path imagePath = Path.of(panel.getImagePath());
-        if (!Files.exists(imagePath)) {
-            return ResponseEntity.notFound().build();
-        }
-        String contentType = Files.probeContentType(imagePath);
-        if (contentType == null) contentType = "image/png";
-        Resource resource = new FileSystemResource(imagePath);
-        return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_TYPE, contentType)
-                .header(HttpHeaders.CACHE_CONTROL, "public, max-age=86400")
-                .body(resource);
+        return serveFile(panel.getImagePath(), "image/png", 86400);
     }
 
     @GetMapping("/projects/{projectId}/panels/{panelId}/video")
     public ResponseEntity<Resource> getPanelVideo(
-            @PathVariable UUID projectId,
-            @PathVariable UUID panelId
-    ) throws IOException {
+            @PathVariable UUID projectId, @PathVariable UUID panelId) throws IOException {
         Panel panel = projectService.findPanel(projectId, panelId);
-        if (panel.getVideoPath() == null || panel.getVideoPath().isBlank()) {
-            return ResponseEntity.notFound().build();
+        return serveFile(panel.getVideoPath(), "video/mp4", 3600);
+    }
+
+    @GetMapping("/projects/{projectId}/panels/{panelId}/voice")
+    public ResponseEntity<Resource> getPanelVoice(
+            @PathVariable UUID projectId, @PathVariable UUID panelId) throws IOException {
+        Panel panel = projectService.findPanel(projectId, panelId);
+        return serveFile(panel.getVoicePath(), "audio/mpeg", 3600);
+    }
+
+    @GetMapping("/projects/{projectId}/panels/{panelId}/sfx")
+    public ResponseEntity<Resource> getPanelSfx(
+            @PathVariable UUID projectId, @PathVariable UUID panelId) throws IOException {
+        Panel panel = projectService.findPanel(projectId, panelId);
+        return serveFile(panel.getSfxPath(), "audio/mpeg", 3600);
+    }
+
+    @GetMapping("/projects/{projectId}/audio/music")
+    public ResponseEntity<Resource> getProjectMusic(@PathVariable UUID projectId) throws IOException {
+        Project project = projectService.findProject(projectId);
+        return serveFile(project.getMusicPath(), "audio/mpeg", 3600);
+    }
+
+    // ─── Helper ──────────────────────────────────────────────────────────────
+
+    private ResponseEntity<Resource> serveFile(String filePath, String contentType, long cacheSeconds)
+            throws IOException {
+        if (filePath == null || filePath.isBlank()) return ResponseEntity.notFound().build();
+        Path path = Path.of(filePath);
+        if (!Files.exists(path)) return ResponseEntity.notFound().build();
+        String ct = contentType;
+        if (ct.startsWith("image")) {
+            String probed = Files.probeContentType(path);
+            if (probed != null) ct = probed;
         }
-        Path videoPath = Path.of(panel.getVideoPath());
-        if (!Files.exists(videoPath)) {
-            return ResponseEntity.notFound().build();
-        }
-        Resource resource = new FileSystemResource(videoPath);
         return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_TYPE, "video/mp4")
+                .header(HttpHeaders.CONTENT_TYPE, ct)
                 .header(HttpHeaders.ACCEPT_RANGES, "bytes")
-                .header(HttpHeaders.CACHE_CONTROL, "public, max-age=3600")
-                .body(resource);
+                .header(HttpHeaders.CACHE_CONTROL, "public, max-age=" + cacheSeconds)
+                .body(new FileSystemResource(path));
     }
 }
