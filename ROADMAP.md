@@ -18,9 +18,14 @@
 - [x] Cinematic prompt generation — generate per-panel cinematic prompts from story context
 
 ## Phase 4 — Video Generation
-- [ ] Integrate Wan 2.2 (primary model — image → video, text → video)
-- [ ] Integrate LTX Video (secondary — fast previews)
-- [ ] Generate first animated clips per panel
+- [x] Mock backend — Ken Burns pan/zoom effect via FFmpeg (works on Replit, no GPU needed)
+- [x] Wan 2.2 backend — image-to-video stub (activate with `VIDEO_BACKEND=wan22` + local GPU)
+- [x] Replicate backend — Wan 2.2 via API (activate with `VIDEO_BACKEND=replicate` + `REPLICATE_API_TOKEN`)
+- [x] Bulk video generation endpoint — animates all panels in one pipeline call
+- [x] Panel image & video serve endpoints in Spring Boot (`/api/projects/{id}/panels/{panelId}/image|video`)
+- [x] `POST /api/projects/{id}/generate-videos` — re-trigger video generation at any time
+- [x] Storyboard editor shows inline video player when panel is animated
+- [x] Preview page — sequential video player with timeline strip + panel navigation
 
 ## Phase 5 — Audio Generation
 - [ ] Voice generation — per-character voices using XTTS v2

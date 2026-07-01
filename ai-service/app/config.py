@@ -10,6 +10,9 @@ class Settings(BaseSettings):
     llm_endpoint: str = ""
     llm_model: str = "qwen3"
 
+    video_backend: str = "mock"
+    video_duration: float = 6.0
+
     class Config:
         env_file = ".env"
 

@@ -91,9 +91,17 @@ public class ProjectService {
         progressPublisher.publish(project.getId(), status, message, percent);
     }
 
-    Project findProject(UUID id) {
+    public Project findProject(UUID id) {
         return projectRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Project not found: " + id));
+    }
+
+    public ai.mangamotion.backend.model.Panel findPanel(UUID projectId, UUID panelId) {
+        Project project = findProject(projectId);
+        return project.getPanels().stream()
+                .filter(p -> p.getId().equals(panelId))
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("Panel not found: " + panelId));
     }
 
     private ProjectResponse toResponse(Project project) {

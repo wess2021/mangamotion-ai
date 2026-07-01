@@ -1,6 +1,6 @@
 import axios from 'axios'
 
-const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:8080'
+const API_URL = import.meta.env.VITE_API_URL ?? ''
 
 export const api = axios.create({
   baseURL: `${API_URL}/api`,
@@ -62,7 +62,19 @@ export async function getProject(projectId: string) {
   return data
 }
 
+export async function getProjects() {
+  const { data } = await api.get<Project[]>('/projects')
+  return data
+}
+
 export async function getPanels(projectId: string) {
   const { data } = await api.get<Panel[]>(`/projects/${projectId}/panels`)
+  return data
+}
+
+export async function triggerVideoGeneration(projectId: string) {
+  const { data } = await api.post<{ message: string; projectId: string }>(
+    `/projects/${projectId}/generate-videos`
+  )
   return data
 }
