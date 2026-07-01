@@ -2,9 +2,9 @@ spring:
   application:
     name: mangamotion-backend
   datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/mangamotion}
-    username: ${SPRING_DATASOURCE_USERNAME:mangamotion}
-    password: ${SPRING_DATASOURCE_PASSWORD:mangamotion}
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://${PGHOST:localhost}:${PGPORT:5432}/${PGDATABASE:mangamotion}}
+    username: ${SPRING_DATASOURCE_USERNAME:${PGUSER:mangamotion}}
+    password: ${SPRING_DATASOURCE_PASSWORD:${PGPASSWORD:mangamotion}}
   jpa:
     hibernate:
       ddl-auto: update
