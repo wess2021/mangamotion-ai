@@ -1,5 +1,7 @@
 from pydantic import BaseModel
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
+
+from app.services.ocr_service import run_ocr_for_project
 
 router = APIRouter()
 
@@ -12,7 +14,7 @@ class OcrRequest(BaseModel):
 class OcrLine(BaseModel):
     panel_id: str
     text: str
-    type: str  # dialogue | narration | sfx
+    type: str
 
 
 class OcrResponse(BaseModel):
@@ -23,9 +25,12 @@ class OcrResponse(BaseModel):
 
 @router.post("/ocr", response_model=OcrResponse)
 def ocr_endpoint(payload: OcrRequest):
-    # Phase 3: integrate EasyOCR / PaddleOCR
-    return {
-        "project_id": payload.project_id,
-        "lines": [],
-        "message": "OCR stub — EasyOCR integration planned for Phase 3",
-    }
+    try:
+        lines = run_ocr_for_project(payload.project_id, payload.languages)
+        return {
+            "project_id": payload.project_id,
+            "lines": lines,
+            "message": f"OCR complete — {len(lines)} text lines extracted",
+        }
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))

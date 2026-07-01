@@ -1,0 +1,380 @@
+MangaMotion AI
+Open-Source AI Platform for Transforming Manhwa into Animated Videos
+________________________________________
+Vision
+MangaMotion AI is an open-source application that transforms manhwa or manga chapters (used only when the user has the necessary rights or permission) into short animated videos using only free and open-source AI models.
+The goal is to automate as much of the animation pipeline as possible while still allowing the user to edit and improve the generated result.
+The entire project should be runnable locally on a consumer GPU (RTX 3060 12GB or better).
+________________________________________
+Objectives
+•	Upload a complete chapter
+•	Detect individual pages
+•	Detect every panel automatically
+•	Read dialogue
+•	Understand the story
+•	Generate cinematic prompts
+•	Animate each panel
+•	Generate voices
+•	Generate sound effects
+•	Generate background music
+•	Merge everything into a downloadable MP4
+•	Allow manual editing before export
+________________________________________
+Main Features
+Chapter Upload
+Supported formats:
+•	PDF
+•	ZIP
+•	Folder of images
+•	JPG
+•	PNG
+•	WEBP
+________________________________________
+Automatic Panel Detection
+The system should detect every panel.
+Output example:
+Page 1
+
+Panel 1
+Panel 2
+Panel 3
+Panel 4
+
+Page 2
+
+Panel 5
+Panel 6
+...
+________________________________________
+OCR
+Extract:
+•	dialogue
+•	narration
+•	sound effects
+Languages:
+•	English
+•	French
+•	Japanese
+•	Korean
+________________________________________
+Story Understanding
+The AI should understand:
+•	characters
+•	locations
+•	emotions
+•	actions
+•	scene transitions
+Example:
+Character A enters the room.
+
+Character B looks surprised.
+
+A fight begins.
+________________________________________
+Prompt Generation
+Instead of using the original panel only, the AI generates a cinematic prompt.
+Example:
+A young swordsman slowly walks through a ruined castle.
+
+Camera performs a slow dolly-in.
+
+Wind moves his cape.
+
+Dust floats through the air.
+
+Highly cinematic.
+
+Anime movie quality.
+________________________________________
+Image Animation
+Generate short videos for every scene.
+Duration:
+5–10 seconds.
+________________________________________
+Scene Merge
+Automatically merge clips.
+Example:
+Scene 1
+↓
+Scene 2
+↓
+Scene 3
+↓
+Final Movie
+________________________________________
+Voice Generation
+Generate voices for characters.
+Different voice for every character.
+________________________________________
+Sound Effects
+Examples:
+•	rain
+•	footsteps
+•	explosion
+•	sword clash
+•	birds
+•	wind
+________________________________________
+Background Music
+Automatically choose music according to:
+•	romance
+•	horror
+•	comedy
+•	battle
+•	drama
+________________________________________
+Subtitle Generation
+Generate subtitles automatically.
+Supported languages:
+•	English
+•	French
+•	Arabic
+________________________________________
+Technology Stack
+Frontend
+•	React
+•	Material UI
+•	React Router
+•	Axios
+________________________________________
+Backend
+•	Spring Boot
+•	Spring Security (future)
+•	PostgreSQL
+•	WebSocket
+•	REST API
+________________________________________
+AI Service
+Python
+Framework:
+•	FastAPI
+Responsibilities:
+•	Panel detection
+•	OCR
+•	Story analysis
+•	Prompt generation
+•	Video generation
+•	Audio generation
+________________________________________
+Open-Source AI Models
+Image Generation
+FLUX.1-dev
+Purpose:
+Generate or improve high-quality cinematic images.
+License:
+Open weights.
+________________________________________
+Video Generation
+Wan 2.2 ⭐ (Primary)
+Purpose:
+Image → Video
+Text → Video
+Reason:
+Currently one of the strongest open-source video generation models.
+________________________________________
+LTX Video (Secondary)
+Purpose:
+Fast previews.
+________________________________________
+OCR
+EasyOCR
+or
+PaddleOCR
+________________________________________
+Story Understanding (LLM)
+Preferred order:
+1.	Qwen 3
+2.	Gemma 3
+3.	Llama 3.1
+Used for:
+•	scene understanding
+•	storyboard creation
+•	cinematic prompts
+________________________________________
+Voice Generation
+XTTS v2
+Purpose:
+Character voices.
+________________________________________
+Music Generation
+Meta AudioCraft
+or
+Stable Audio Open
+________________________________________
+Sound Effects
+AudioCraft
+________________________________________
+Video Editing
+FFmpeg
+Responsibilities:
+•	merge videos
+•	merge audio
+•	subtitles
+•	final MP4 export
+________________________________________
+Project Architecture
+                React Frontend
+                       │
+                       ▼
+               Spring Boot API
+                       │
+        ┌──────────────┴──────────────┐
+        │                             │
+        ▼                             ▼
+ PostgreSQL                 Python AI Service
+                                      │
+        ┌─────────────────────────────┼──────────────────────────┐
+        ▼                             ▼                          ▼
+   Panel Detection               OCR + LLM               Video Models
+                                      │
+                                      ▼
+                            Audio Generation
+                                      │
+                                      ▼
+                                  FFmpeg
+                                      │
+                                      ▼
+                                 Final MP4
+________________________________________
+Workflow
+Upload Chapter
+
+↓
+
+Extract Pages
+
+↓
+
+Detect Panels
+
+↓
+
+OCR
+
+↓
+
+Story Analysis
+
+↓
+
+Storyboard
+
+↓
+
+Generate Prompts
+
+↓
+
+Generate Videos
+
+↓
+
+Generate Voices
+
+↓
+
+Generate Music
+
+↓
+
+Merge
+
+↓
+
+Preview
+
+↓
+
+Download MP4
+________________________________________
+Frontend Pages
+Home
+Project overview.
+________________________________________
+Upload
+Upload chapter.
+________________________________________
+Processing
+Real-time progress.
+Example:
+Uploading...
+
+Detecting Panels...
+
+Reading Dialogue...
+
+Understanding Story...
+
+Generating Videos...
+
+Generating Voices...
+
+Merging...
+
+Done
+________________________________________
+Storyboard Editor
+Allow users to:
+•	reorder scenes
+•	edit prompts
+•	regenerate a scene
+•	delete scenes
+•	add scenes
+________________________________________
+Video Preview
+Video player.
+Timeline.
+Download button.
+________________________________________
+Future Features
+•	Character consistency across scenes
+•	LoRA support
+•	Style selection (Anime, Ghibli, Realistic, Pixar)
+•	Camera controls
+•	Lip sync
+•	Multi-character dialogue
+•	4K export
+•	Cloud rendering
+•	Batch processing
+•	Project save/load
+•	AI-assisted video editing
+•	Automatic scene transitions
+________________________________________
+Development Roadmap
+Phase 1
+•	Create React project
+•	Create Spring Boot backend
+•	Create FastAPI AI service
+•	Docker setup
+________________________________________
+Phase 2
+•	Upload chapter
+•	Store files
+•	Detect pages
+•	Detect panels
+________________________________________
+Phase 3
+•	OCR
+•	Story understanding
+•	Prompt generation
+________________________________________
+Phase 4
+•	Integrate Wan 2.2
+•	Generate first animated clips
+________________________________________
+Phase 5
+•	Voices
+•	Music
+•	Sound effects
+________________________________________
+Phase 6
+•	Merge videos
+•	Timeline editor
+•	Download MP4
+________________________________________
+Phase 7
+•	Performance optimization
+•	Batch rendering
+•	User customization
+•	Advanced editing
+________________________________________
